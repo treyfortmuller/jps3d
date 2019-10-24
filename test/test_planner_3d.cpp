@@ -17,6 +17,7 @@ int main(int argc, char **argv)
 
   // Read the map from yaml
   auto mapTimeStart = std::chrono::steady_clock::now();
+  std::cout << "READING MAP FROM YAML FILE" << std::endl;
   MapReader<Vec3i, Vec3f> reader(argv[1], true); // Map read from a given file
   if (!reader.exist())
   {

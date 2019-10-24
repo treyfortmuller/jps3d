@@ -140,10 +140,14 @@ bool GraphSearch::plan(int xStart, int yStart, int zStart, int xGoal, int yGoal,
 // ***************** THE 3D JPS PLAN FUNCTION *****************
 
 // THIS is finally the actual business logic of 3D JPS, all the other higher level plan functions were just
-// wrappers doing sanity checks and setting up the state for this
+// wrappers doing sanity checks and setting up the state for this, its 100 lines long
 bool GraphSearch::plan(StatePtr &currNode_ptr, int maxExpand, int start_id, int goal_id)
 {
-  // Insert start node
+
+  printf("Entered the 3D JPS Plan Business logic.\n---\n\n");
+
+  // Insert start node - note he uses a BOOST priority queue whereas I use a std::priority_queue
+  // ALSO: he maintains a priority queue of pointers to nodes rather than a priority queue of node IDs like me
   currNode_ptr->heapkey = pq_.push(currNode_ptr);
   currNode_ptr->opened = true;
   hm_[currNode_ptr->id] = currNode_ptr;
@@ -165,7 +169,9 @@ bool GraphSearch::plan(StatePtr &currNode_ptr, int maxExpand, int start_id, int 
       break;
     }
 
-    //printf("expand: %d, %d\n", currNode_ptr->x, currNode_ptr->y);
+    // Here's the current node we're expanding!
+    printf("A* expansion on: %d, %d\n", currNode_ptr->x, currNode_ptr->y);
+
     std::vector<int> succ_ids;
     std::vector<double> succ_costs;
     // Get successors
