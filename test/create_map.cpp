@@ -42,8 +42,10 @@ int main()
   out << YAML::EndMap;
 
   out << YAML::EndSeq;
-  std::cout << "Here is the example map:\n"
-            << out.c_str() << std::endl;
+
+  // Don't need to print the map to the console it wastes time
+  // std::cout << "Here is the example map:\n"
+  //           << out.c_str() << std::endl;
 
   std::ofstream file;
   file.open("trey.yaml");

@@ -26,7 +26,7 @@ int main(int argc, char **argv)
 
   auto mapTimeEnd = std::chrono::steady_clock::now();
   auto mapTime = std::chrono::duration_cast<std::chrono::seconds>(mapTimeEnd - mapTimeStart).count();
-  std::cout << "Reading map from YAML time in seconds : " << mapTime << " s" << std::endl;
+  std::cout << "Reading map from YAML took: " << mapTime << " s" << std::endl;
 
   // store map in map_util, create a new planner, set the start and end goals
   std::shared_ptr<VoxelMapUtil> map_util = std::make_shared<VoxelMapUtil>();
@@ -53,7 +53,7 @@ int main(int argc, char **argv)
   // printf("JPS Planner takes: %f ms\n", dt_jps);
 
   // Output JPS planning stats
-  std::cout << "JPS plan time in ms : " << planTime << " ms" << std::endl;
+  std::cout << "JPS PLAN TOOK: " << planTime << " ms" << std::endl;
   printf("JPS Path Distance: %f\n", total_distance3f(planner_ptr->getRawPath()));
   printf("JPS Path: \n");
   auto path_jps = planner_ptr->getRawPath();
