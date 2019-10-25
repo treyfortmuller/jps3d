@@ -1,5 +1,6 @@
 #include <jps_planner/jps_planner/graph_search.h>
 #include <cmath>
+#include <chrono>
 
 using namespace JPS;
 
@@ -174,14 +175,24 @@ bool GraphSearch::plan(StatePtr &currNode_ptr, int maxExpand, int start_id, int 
 
     std::vector<int> succ_ids;
     std::vector<double> succ_costs;
+
     // Get successors
     if (!use_jps_)
       getSucc(currNode_ptr, succ_ids, succ_costs);
     else
+    {
+      // We'll always be getting the JPS successors, time this function
+      auto getSuccStart = std::chrono::steady_clock::now();
+
       getJpsSucc(currNode_ptr, succ_ids, succ_costs);
 
+      auto getSuccEnd = std::chrono::steady_clock::now();
+      auto succTime = std::chrono::duration_cast<std::chrono::milliseconds>(getSuccEnd - getSuccStart).count();
+      printf("Get Successors took: %ld ms\n", succTime);
+    }
     // if(verbose_)
     // printf("size of succs: %zu\n", succ_ids.size());
+
     // Process successors
     for (int s = 0; s < (int)succ_ids.size(); s++)
     {
@@ -189,14 +200,16 @@ bool GraphSearch::plan(StatePtr &currNode_ptr, int maxExpand, int start_id, int 
       StatePtr &child_ptr = hm_[succ_ids[s]];
       double tentative_gval = currNode_ptr->g + succ_costs[s];
 
-      if (tentative_gval < child_ptr->g)
+      // This guy does the check to see if he can lower the g score when he re-expands a node which
+      // I don't think is necessary when using a consistent heuristic.
+      if (tentative_gval < child_ptr->g) // We must always drop in here if there's no g-value set
       {
         child_ptr->parentId = currNode_ptr->id; // Assign new parent
         child_ptr->g = tentative_gval;          // Update gval
 
         //double fval = child_ptr->g + child_ptr->h;
 
-        // if currently in OPEN, update
+        // if currently in OPEN, update - I don't think this is necessary
         if (child_ptr->opened && !child_ptr->closed)
         {
           pq_.increase(child_ptr->heapkey); // update heap
@@ -221,7 +234,7 @@ bool GraphSearch::plan(StatePtr &currNode_ptr, int maxExpand, int start_id, int 
           child_ptr->heapkey = pq_.push(child_ptr);
           child_ptr->opened = true;
         }
-      } //
+      } // This if block is still necessary since he does g value assignment here
     }   // Process successors
 
     if (maxExpand > 0 && expand_iteration >= maxExpand)
@@ -241,12 +254,23 @@ bool GraphSearch::plan(StatePtr &currNode_ptr, int maxExpand, int start_id, int 
 
   if (verbose_)
   {
-    printf("goal g: %f, h: %f!\n", currNode_ptr->g, currNode_ptr->h);
-    printf("Expand [%d] nodes!\n", expand_iteration);
+    // Kinda dumb print statement because we already print the total path cost
+    // printf("goal g: %f, h: %f!\n", currNode_ptr->g, currNode_ptr->h);
+
+    // A* expanded nodes
+    printf("A* expanded %d nodes!\n", expand_iteration);
   }
 
+  // Now recover the path given the current node's pointer and the ID of the start node
+  // time this.
+  auto recoverTimeStart = std::chrono::steady_clock::now();
   path_ = recoverPath(currNode_ptr, start_id);
+  auto recoverTimeEnd = std::chrono::steady_clock::now();
+  auto recoverTime = std::chrono::duration_cast<std::chrono::nanoseconds>(recoverTimeEnd - recoverTimeStart).count();
+  printf("Path recovery took: %ld ns\n", recoverTime);
+  // std::cout << "Path smoothing took: " << recoverTime << " ns" << std::endl;
 
+  // We've successfully found a path so return true
   return true;
 }
 
@@ -312,146 +336,116 @@ void GraphSearch::getSucc(const StatePtr &curr, std::vector<int> &succ_ids, std:
   }
 }
 
+// *********** JPS 3D GET SUCCESSORS BUSINESS LOGIC *************
+
+// 3D JUMP POINT SEARCH GET SUCCESSORS BUSINESS LOGIC
 void GraphSearch::getJpsSucc(const StatePtr &curr, std::vector<int> &succ_ids, std::vector<double> &succ_costs)
 {
-  if (use_2d_)
+  // There was a check to see if we should be using 2D or 3D jump point search here, I deleted it for brevity and just left the 3D code
+  // if (use_2d_) {
+  // else {
+  // Straight up eliminating the 2D get successors code for brevity
+
+  // 3D JPS get successors
+  // essentially computing the motion diagonal order - he uses 1 for a straight move, this is a way faster computation
+  const int norm1 = std::abs(curr->dx) + std::abs(curr->dy) + std::abs(curr->dz);
+
+  // TODO: I don't understand what these are, this is critical
+  int num_neib = jn3d_->nsz[norm1][0];
+  int num_fneib = jn3d_->nsz[norm1][1];
+  int id = (curr->dx + 1) + 3 * (curr->dy + 1) + 9 * (curr->dz + 1);
+
+  // A for loop from 0 to the sum of the neighbors and the forced neighbors
+  for (int dev = 0; dev < num_neib + num_fneib; ++dev)
   {
-    const int norm1 = std::abs(curr->dx) + std::abs(curr->dy);
-    int num_neib = jn2d_->nsz[norm1][0];
-    int num_fneib = jn2d_->nsz[norm1][1];
-    int id = (curr->dx + 1) + 3 * (curr->dy + 1);
+    int new_x, new_y, new_z;
+    int dx, dy, dz;
 
-    for (int dev = 0; dev < num_neib + num_fneib; ++dev)
+    // What is this check
+    if (dev < num_neib)
     {
-      int new_x, new_y;
-      int dx, dy;
-      if (dev < num_neib)
-      {
-        dx = jn2d_->ns[id][0][dev];
-        dy = jn2d_->ns[id][1][dev];
-        if (!jump(curr->x, curr->y, dx, dy, new_x, new_y))
-          continue;
-      }
-      else
-      {
-        int nx = curr->x + jn2d_->f1[id][0][dev - num_neib];
-        int ny = curr->y + jn2d_->f1[id][1][dev - num_neib];
-        if (isOccupied(nx, ny))
-        {
-          dx = jn2d_->f2[id][0][dev - num_neib];
-          dy = jn2d_->f2[id][1][dev - num_neib];
-          if (!jump(curr->x, curr->y, dx, dy, new_x, new_y))
-            continue;
-        }
-        else
-          continue;
-      }
+      dx = jn3d_->ns[id][0][dev];
+      dy = jn3d_->ns[id][1][dev];
+      dz = jn3d_->ns[id][2][dev];
 
-      int new_id = coordToId(new_x, new_y);
-      if (!seen_[new_id])
-      {
-        seen_[new_id] = true;
-        hm_[new_id] = std::make_shared<State>(new_id, new_x, new_y, dx, dy);
-        hm_[new_id]->h = getHeur(new_x, new_y);
-      }
+      // Interesting... we only ever seem to check if we don't detect a jump point
+      // timing this, this is apparently crazy stupid fast
 
-      succ_ids.push_back(new_id);
-      succ_costs.push_back(std::sqrt((new_x - curr->x) * (new_x - curr->x) +
-                                     (new_y - curr->y) * (new_y - curr->y)));
+      auto jumpTimeStart = std::chrono::steady_clock::now();
+
+      auto jumpResult = jump(curr->x, curr->y, curr->z,
+                             dx, dy, dz, new_x, new_y, new_z);
+
+      auto jumpTimeEnd = std::chrono::steady_clock::now();
+      auto jumpTime = std::chrono::duration_cast<std::chrono::nanoseconds>(jumpTimeEnd - jumpTimeStart).count();
+      printf("JUMP TOOK: %ld ns\n", jumpTime);
+
+      if (!jumpResult)
+      {
+        continue;
+      }
     }
-  }
-  else
-  {
-    const int norm1 = std::abs(curr->dx) + std::abs(curr->dy) + std::abs(curr->dz);
-    int num_neib = jn3d_->nsz[norm1][0];
-    int num_fneib = jn3d_->nsz[norm1][1];
-    int id = (curr->dx + 1) + 3 * (curr->dy + 1) + 9 * (curr->dz + 1);
-
-    for (int dev = 0; dev < num_neib + num_fneib; ++dev)
+    else
     {
-      int new_x, new_y, new_z;
-      int dx, dy, dz;
-      if (dev < num_neib)
+      int nx = curr->x + jn3d_->f1[id][0][dev - num_neib];
+      int ny = curr->y + jn3d_->f1[id][1][dev - num_neib];
+      int nz = curr->z + jn3d_->f1[id][2][dev - num_neib];
+      if (isOccupied(nx, ny, nz))
       {
-        dx = jn3d_->ns[id][0][dev];
-        dy = jn3d_->ns[id][1][dev];
-        dz = jn3d_->ns[id][2][dev];
+        dx = jn3d_->f2[id][0][dev - num_neib];
+        dy = jn3d_->f2[id][1][dev - num_neib];
+        dz = jn3d_->f2[id][2][dev - num_neib];
         if (!jump(curr->x, curr->y, curr->z,
                   dx, dy, dz, new_x, new_y, new_z))
           continue;
       }
       else
-      {
-        int nx = curr->x + jn3d_->f1[id][0][dev - num_neib];
-        int ny = curr->y + jn3d_->f1[id][1][dev - num_neib];
-        int nz = curr->z + jn3d_->f1[id][2][dev - num_neib];
-        if (isOccupied(nx, ny, nz))
-        {
-          dx = jn3d_->f2[id][0][dev - num_neib];
-          dy = jn3d_->f2[id][1][dev - num_neib];
-          dz = jn3d_->f2[id][2][dev - num_neib];
-          if (!jump(curr->x, curr->y, curr->z,
-                    dx, dy, dz, new_x, new_y, new_z))
-            continue;
-        }
-        else
-          continue;
-      }
-
-      int new_id = coordToId(new_x, new_y, new_z);
-      if (!seen_[new_id])
-      {
-        seen_[new_id] = true;
-        hm_[new_id] = std::make_shared<State>(new_id, new_x, new_y, new_z, dx, dy, dz);
-        hm_[new_id]->h = getHeur(new_x, new_y, new_z);
-      }
-
-      succ_ids.push_back(new_id);
-      succ_costs.push_back(std::sqrt((new_x - curr->x) * (new_x - curr->x) +
-                                     (new_y - curr->y) * (new_y - curr->y) +
-                                     (new_z - curr->z) * (new_z - curr->z)));
+        continue;
     }
+
+    int new_id = coordToId(new_x, new_y, new_z);
+    if (!seen_[new_id])
+    {
+      seen_[new_id] = true;
+      hm_[new_id] = std::make_shared<State>(new_id, new_x, new_y, new_z, dx, dy, dz);
+      hm_[new_id]->h = getHeur(new_x, new_y, new_z);
+    }
+
+    succ_ids.push_back(new_id);
+    succ_costs.push_back(std::sqrt((new_x - curr->x) * (new_x - curr->x) +
+                                   (new_y - curr->y) * (new_y - curr->y) +
+                                   (new_z - curr->z) * (new_z - curr->z)));
   }
+  // }
 }
 
-bool GraphSearch::jump(int x, int y, int dx, int dy, int &new_x, int &new_y)
-{
-  new_x = x + dx;
-  new_y = y + dy;
-  if (!isFree(new_x, new_y))
-    return false;
+// *********** END JPS 3D GET SUCCESSORS BUSINESS LOGIC *************
 
-  if (new_x == xGoal_ && new_y == yGoal_)
-    return true;
+// deleted the 2D version of the jump function that existed here
 
-  if (hasForced(new_x, new_y, dx, dy))
-    return true;
-
-  const int id = (dx + 1) + 3 * (dy + 1);
-  const int norm1 = std::abs(dx) + std::abs(dy);
-  int num_neib = jn2d_->nsz[norm1][0];
-  for (int k = 0; k < num_neib - 1; ++k)
-  {
-    int new_new_x, new_new_y;
-    if (jump(new_x, new_y, jn2d_->ns[id][0][k], jn2d_->ns[id][1][k],
-             new_new_x, new_new_y))
-      return true;
-  }
-
-  return jump(new_x, new_y, dx, dy, new_x, new_y);
-}
-
+// This is the jump function we care about!
 bool GraphSearch::jump(int x, int y, int z, int dx, int dy, int dz, int &new_x, int &new_y, int &new_z)
 {
+  // auto addStart = std::chrono::steady_clock::now();
+
+  // I have similar code that gets the next neighbor
   new_x = x + dx;
   new_y = y + dy;
   new_z = z + dz;
+
+  // auto addEnd = std::chrono::steady_clock::now();
+  // auto addTime = std::chrono::duration_cast<std::chrono::nanoseconds>(addEnd - addStart).count();
+  // printf("Add time took: %ld ns\n", addTime);
+
+  // I have a similar check
   if (!isFree(new_x, new_y, new_z))
     return false;
 
+  // I have a similar check
   if (new_x == xGoal_ && new_y == yGoal_ && new_z == zGoal_)
     return true;
 
+  // here I would grab ALL the neighbors of the current node, then "computeForcedNeighbors" with that extraction as an argument
   if (hasForced(new_x, new_y, new_z, dx, dy, dz))
     return true;
 
@@ -470,23 +464,14 @@ bool GraphSearch::jump(int x, int y, int z, int dx, int dy, int dz, int &new_x, 
   return jump(new_x, new_y, new_z, dx, dy, dz, new_x, new_y, new_z);
 }
 
-inline bool GraphSearch::hasForced(int x, int y, int dx, int dy)
-{
-  const int id = (dx + 1) + 3 * (dy + 1);
-  for (int fn = 0; fn < 2; ++fn)
-  {
-    int nx = x + jn2d_->f1[id][0][fn];
-    int ny = y + jn2d_->f1[id][1][fn];
-    if (isOccupied(nx, ny))
-      return true;
-  }
-  return false;
-}
+// Deleted the 2D version of hasForced here
 
 inline bool GraphSearch::hasForced(int x, int y, int z, int dx, int dy, int dz)
 {
   int norm1 = std::abs(dx) + std::abs(dy) + std::abs(dz);
   int id = (dx + 1) + 3 * (dy + 1) + 9 * (dz + 1);
+
+  // Switch on the motion diagonal order!
   switch (norm1)
   {
   case 1:
@@ -513,6 +498,7 @@ inline bool GraphSearch::hasForced(int x, int y, int z, int dx, int dy, int dz)
     return false;
   case 3:
     // 3-d move, check 6 neighbors
+    // TODO! I count 7 obstacle positions in this case what are these 6?
     for (int fn = 0; fn < 6; ++fn)
     {
       int nx = x + jn3d_->f1[id][0][fn];
