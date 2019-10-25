@@ -246,18 +246,11 @@ bool JPSPlanner<Dim>::plan(const Vecf<Dim> &start, const Vecf<Dim> &goal, decima
 
   const Veci<Dim> dim = map_util_->getDim();
 
-  if (Dim == 3)
-  {
-    // Call a 3D graph search!
-    graph_search_ = std::make_shared<JPS::GraphSearch>(cmap_.data(), dim(0), dim(1), dim(2), eps, planner_verbose_);
-    graph_search_->plan(start_int(0), start_int(1), start_int(2), goal_int(0), goal_int(1), goal_int(2), use_jps);
-  }
-  else
-  {
-    // Call a 2D graph search!
-    graph_search_ = std::make_shared<JPS::GraphSearch>(cmap_.data(), dim(0), dim(1), eps, planner_verbose_);
-    graph_search_->plan(start_int(0), start_int(1), goal_int(0), goal_int(1), use_jps);
-  }
+  // Call a 3D graph search!
+  graph_search_ = std::make_shared<JPS::GraphSearch>(cmap_.data(), dim(0), dim(1), dim(2), eps, planner_verbose_);
+  graph_search_->plan(start_int(0), start_int(1), start_int(2), goal_int(0), goal_int(1), goal_int(2), use_jps);
+
+  // deleted a check for 2D versions of graph search instatiation
 
   // The graph search class will populate a member variable with the path which we can retreive here
   const auto path = graph_search_->getPath();

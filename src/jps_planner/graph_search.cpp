@@ -4,23 +4,7 @@
 
 using namespace JPS;
 
-GraphSearch::GraphSearch(const char *cMap, int xDim, int yDim, double eps, bool verbose) : cMap_(cMap), xDim_(xDim), yDim_(yDim), eps_(eps), verbose_(verbose)
-{
-  hm_.resize(xDim_ * yDim_);
-  seen_.resize(xDim_ * yDim_, false);
-
-  for (int x = -1; x <= 1; x++)
-  {
-    for (int y = -1; y <= 1; y++)
-    {
-      if (x == 0 && y == 0)
-        continue;
-      ns_.push_back(std::vector<int>{x, y});
-    }
-  }
-
-  jn2d_ = std::make_shared<JPS2DNeib>();
-}
+// deleted 2D graph search constructor
 
 GraphSearch::GraphSearch(const char *cMap, int xDim, int yDim, int zDim, double eps, bool verbose) : cMap_(cMap), xDim_(xDim), yDim_(yDim), zDim_(zDim), eps_(eps), verbose_(verbose)
 {
@@ -43,21 +27,14 @@ GraphSearch::GraphSearch(const char *cMap, int xDim, int yDim, int zDim, double 
   jn3d_ = std::make_shared<JPS3DNeib>();
 }
 
-inline int GraphSearch::coordToId(int x, int y) const
-{
-  return x + y * xDim_;
-}
+// deleted 2D coordToId
 
 inline int GraphSearch::coordToId(int x, int y, int z) const
 {
   return x + y * xDim_ + z * xDim_ * yDim_;
 }
 
-inline bool GraphSearch::isFree(int x, int y) const
-{
-  return x >= 0 && x < xDim_ && y >= 0 && y < yDim_ &&
-         cMap_[coordToId(x, y)] == val_free_;
-}
+// deleted 2D isFree
 
 inline bool GraphSearch::isFree(int x, int y, int z) const
 {
@@ -65,11 +42,7 @@ inline bool GraphSearch::isFree(int x, int y, int z) const
          cMap_[coordToId(x, y, z)] == val_free_;
 }
 
-inline bool GraphSearch::isOccupied(int x, int y) const
-{
-  return x >= 0 && x < xDim_ && y >= 0 && y < yDim_ &&
-         cMap_[coordToId(x, y)] > val_free_;
-}
+// deleted 2D isOccupied
 
 inline bool GraphSearch::isOccupied(int x, int y, int z) const
 {
@@ -77,39 +50,15 @@ inline bool GraphSearch::isOccupied(int x, int y, int z) const
          cMap_[coordToId(x, y, z)] > val_free_;
 }
 
-inline double GraphSearch::getHeur(int x, int y) const
-{
-  return eps_ * std::sqrt((x - xGoal_) * (x - xGoal_) + (y - yGoal_) * (y - yGoal_));
-}
+// deleted 2D getHeur
 
 inline double GraphSearch::getHeur(int x, int y, int z) const
 {
+  // eps_ is the "epsilon" is the heuristic weight, which defaults to 1
   return eps_ * std::sqrt((x - xGoal_) * (x - xGoal_) + (y - yGoal_) * (y - yGoal_) + (z - zGoal_) * (z - zGoal_));
 }
 
-bool GraphSearch::plan(int xStart, int yStart, int xGoal, int yGoal, bool useJps, int maxExpand)
-{
-  use_2d_ = true;
-  pq_.clear();
-  path_.clear();
-  hm_.resize(xDim_ * yDim_);
-  seen_.resize(xDim_ * yDim_, false);
-  // Set jps
-  use_jps_ = useJps;
-
-  // Set goal
-  int goal_id = coordToId(xGoal, yGoal);
-  xGoal_ = xGoal;
-  yGoal_ = yGoal;
-
-  // Set start node
-  int start_id = coordToId(xStart, yStart);
-  StatePtr currNode_ptr = std::make_shared<State>(State(start_id, xStart, yStart, 0, 0));
-  currNode_ptr->g = 0;
-  currNode_ptr->h = getHeur(xStart, yStart);
-
-  return plan(currNode_ptr, maxExpand, start_id, goal_id);
-}
+// deleted 2D plan prep function here
 
 // This is the 3D JPS plan function that we care about
 bool GraphSearch::plan(int xStart, int yStart, int zStart, int xGoal, int yGoal, int zGoal, bool useJps, int maxExpand)
@@ -177,19 +126,17 @@ bool GraphSearch::plan(StatePtr &currNode_ptr, int maxExpand, int start_id, int 
     std::vector<double> succ_costs;
 
     // Get successors
-    if (!use_jps_)
-      getSucc(currNode_ptr, succ_ids, succ_costs);
-    else
-    {
-      // We'll always be getting the JPS successors, time this function
-      auto getSuccStart = std::chrono::steady_clock::now();
+    // deleted check against whether we need A* "successors" or JPS succesors
 
-      getJpsSucc(currNode_ptr, succ_ids, succ_costs);
+    // We'll always be getting the JPS successors, time this function
+    auto getSuccStart = std::chrono::steady_clock::now();
 
-      auto getSuccEnd = std::chrono::steady_clock::now();
-      auto succTime = std::chrono::duration_cast<std::chrono::milliseconds>(getSuccEnd - getSuccStart).count();
-      printf("Get Successors took: %ld ms\n", succTime);
-    }
+    getJpsSucc(currNode_ptr, succ_ids, succ_costs);
+
+    auto getSuccEnd = std::chrono::steady_clock::now();
+    auto succTime = std::chrono::duration_cast<std::chrono::milliseconds>(getSuccEnd - getSuccStart).count();
+    printf("Get Successors took: %ld ms\n", succTime);
+
     // if(verbose_)
     // printf("size of succs: %zu\n", succ_ids.size());
 
@@ -291,48 +238,26 @@ std::vector<StatePtr> GraphSearch::recoverPath(StatePtr node, int start_id)
 
 void GraphSearch::getSucc(const StatePtr &curr, std::vector<int> &succ_ids, std::vector<double> &succ_costs)
 {
-  if (use_2d_)
+  // deleted 2D version of function
+
+  for (const auto &d : ns_)
   {
-    for (const auto &d : ns_)
+    int new_x = curr->x + d[0];
+    int new_y = curr->y + d[1];
+    int new_z = curr->z + d[2];
+    if (!isFree(new_x, new_y, new_z))
+      continue;
+
+    int new_id = coordToId(new_x, new_y, new_z);
+    if (!seen_[new_id])
     {
-      int new_x = curr->x + d[0];
-      int new_y = curr->y + d[1];
-      if (!isFree(new_x, new_y))
-        continue;
-
-      int new_id = coordToId(new_x, new_y);
-      if (!seen_[new_id])
-      {
-        seen_[new_id] = true;
-        hm_[new_id] = std::make_shared<State>(new_id, new_x, new_y, d[0], d[1]);
-        hm_[new_id]->h = getHeur(new_x, new_y);
-      }
-
-      succ_ids.push_back(new_id);
-      succ_costs.push_back(std::sqrt(d[0] * d[0] + d[1] * d[1]));
+      seen_[new_id] = true;
+      hm_[new_id] = std::make_shared<State>(new_id, new_x, new_y, new_z, d[0], d[1], d[2]);
+      hm_[new_id]->h = getHeur(new_x, new_y, new_z);
     }
-  }
-  else
-  {
-    for (const auto &d : ns_)
-    {
-      int new_x = curr->x + d[0];
-      int new_y = curr->y + d[1];
-      int new_z = curr->z + d[2];
-      if (!isFree(new_x, new_y, new_z))
-        continue;
 
-      int new_id = coordToId(new_x, new_y, new_z);
-      if (!seen_[new_id])
-      {
-        seen_[new_id] = true;
-        hm_[new_id] = std::make_shared<State>(new_id, new_x, new_y, new_z, d[0], d[1], d[2]);
-        hm_[new_id]->h = getHeur(new_x, new_y, new_z);
-      }
-
-      succ_ids.push_back(new_id);
-      succ_costs.push_back(std::sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]));
-    }
+    succ_ids.push_back(new_id);
+    succ_costs.push_back(std::sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]));
   }
 }
 
@@ -353,6 +278,8 @@ void GraphSearch::getJpsSucc(const StatePtr &curr, std::vector<int> &succ_ids, s
   // TODO: I don't understand what these are, this is critical
   int num_neib = jn3d_->nsz[norm1][0];
   int num_fneib = jn3d_->nsz[norm1][1];
+
+  // get the unique ID associated with the motion direction
   int id = (curr->dx + 1) + 3 * (curr->dy + 1) + 9 * (curr->dz + 1);
 
   // A for loop from 0 to the sum of the neighbors and the forced neighbors
@@ -424,6 +351,7 @@ void GraphSearch::getJpsSucc(const StatePtr &curr, std::vector<int> &succ_ids, s
 // deleted the 2D version of the jump function that existed here
 
 // This is the jump function we care about!
+// Note he just returns true when a node is a jump point, I return an optional size_t indicating where the jump point is which must be
 bool GraphSearch::jump(int x, int y, int z, int dx, int dy, int dz, int &new_x, int &new_y, int &new_z)
 {
   // auto addStart = std::chrono::steady_clock::now();
@@ -446,7 +374,15 @@ bool GraphSearch::jump(int x, int y, int z, int dx, int dy, int dz, int &new_x, 
     return true;
 
   // here I would grab ALL the neighbors of the current node, then "computeForcedNeighbors" with that extraction as an argument
-  if (hasForced(new_x, new_y, new_z, dx, dy, dz))
+
+  // auto forcedStart = std::chrono::steady_clock::now();
+  bool hasForcedResult = hasForced(new_x, new_y, new_z, dx, dy, dz);
+  // auto forcedEnd = std::chrono::steady_clock::now();
+  // auto forcedTime = std::chrono::duration_cast<std::chrono::nanoseconds>(forcedEnd - forcedStart).count();
+  // printf("hasForced time took: %ld ns\n", forcedTime);
+
+  if (hasForcedResult)
+    // This node has forced neighbors so it is a jump point
     return true;
 
   const int id = (dx + 1) + 3 * (dy + 1) + 9 * (dz + 1);
@@ -469,7 +405,20 @@ bool GraphSearch::jump(int x, int y, int z, int dx, int dy, int dz, int &new_x, 
 inline bool GraphSearch::hasForced(int x, int y, int z, int dx, int dy, int dz)
 {
   int norm1 = std::abs(dx) + std::abs(dy) + std::abs(dz);
+
+  // How can you get an ID just from the direction vector, doesn't seem like this should be enough information
+  // Printing the direction vectors
+  // printf("[dx, dy, dz]: [%d, %d, %d]\n", dx, dy, dz);
+  // dx, dy, dz seem to form direction vectors in my sense of the word
+
+  // This is a direction ID
   int id = (dx + 1) + 3 * (dy + 1) + 9 * (dz + 1);
+  // This ID is the same when the direction vector is the same, maybe this is not an actual cell ID but an
+  // ID associated with a direction?
+  // always 14 for a positive x cardinal direction vector
+  // always 16 for a positive y cardinal direction vector
+
+  // printf("id: %d\n", id);
 
   // Switch on the motion diagonal order!
   switch (norm1)
@@ -478,12 +427,26 @@ inline bool GraphSearch::hasForced(int x, int y, int z, int dx, int dy, int dz)
     // 1-d move, check 8 neighbors
     for (int fn = 0; fn < 8; ++fn)
     {
-      int nx = x + jn3d_->f1[id][0][fn];
-      int ny = y + jn3d_->f1[id][1][fn];
-      int nz = z + jn3d_->f1[id][2][fn];
+      // This is a 1D move, we have eight blocking neighbor positions to check
+      // blocking obstacle positions?
+      // for each neighbor, compute its x, y, z coordinate position from this map and check if its occupied, if any one of them is we can
+      // short circuit, early return, and say yes. This node has forced neighbors (MAYBE EVEN IF THOSE FOCED NEIGHBORS ARE NOT PASSABLE)
+
+      // He uses the ID computed above (directly associated with a directon vector) to index an array
+      // This simulates the effect of a hashing function, we're just coming up with a value we an index an array with
+      // (I used a map though)
+
+      // ? What is f1?
+      int nx = x + jn3d_->f1[id][0][fn]; // id indexes the direction we're moving
+      int ny = y + jn3d_->f1[id][1][fn]; // 0, 1, 2 indexes the x, y, or z element of the neighbor
+      int nz = z + jn3d_->f1[id][2][fn]; // fn indexes the neighbor we're looking at... seems weird
+
+      // ^^^ I would have done f1[id][fn][0] ???
+
       if (isOccupied(nx, ny, nz))
         return true;
     }
+    // None of the blocking obstacle positions are impassable so we can prune everything and this node has no forced neighbors
     return false;
   case 2:
     // 2-d move, check 8 neighbors
@@ -509,6 +472,7 @@ inline bool GraphSearch::hasForced(int x, int y, int z, int dx, int dy, int dz)
     }
     return false;
   default:
+    // probably in the case of a motion diagonal order of 0, return that it does not have forced neighbors
     return false;
   }
 }
