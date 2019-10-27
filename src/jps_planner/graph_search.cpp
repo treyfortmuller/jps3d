@@ -276,8 +276,17 @@ void GraphSearch::getJpsSucc(const StatePtr &curr, std::vector<int> &succ_ids, s
   const int norm1 = std::abs(curr->dx) + std::abs(curr->dy) + std::abs(curr->dz);
 
   // TODO: I don't understand what these are, this is critical
+  // static constexpr int nsz[4][2] = {{26, 0}, {1, 8}, {3, 12}, {7, 12}};
+
   int num_neib = jn3d_->nsz[norm1][0];
   int num_fneib = jn3d_->nsz[norm1][1];
+
+  printf("     norm: %d\n", norm1);
+  printf(" num_neib: %d\n", num_neib);
+  printf("num_fneib: %d\n", num_fneib);
+
+  // When moving in a cardinal direction there is 1 natural neighbor and 8 forced neighbors
+  // num_neib + num_fneib is 9
 
   // get the unique ID associated with the motion direction
   int id = (curr->dx + 1) + 3 * (curr->dy + 1) + 9 * (curr->dz + 1);
@@ -288,10 +297,14 @@ void GraphSearch::getJpsSucc(const StatePtr &curr, std::vector<int> &succ_ids, s
     int new_x, new_y, new_z;
     int dx, dy, dz;
 
-    // What is this check
+    // Are we checking the natural neighbors or the forced neighbors
     if (dev < num_neib)
     {
-      dx = jn3d_->ns[id][0][dev];
+      // We're checking the natural neighbors
+
+      // Get the elements of the direction vector to this neighbor
+      // this must be looking up the values of a direction vector for each neighbor
+      dx = jn3d_->ns[id][0][dev]; // TODO: how does this array work?
       dy = jn3d_->ns[id][1][dev];
       dz = jn3d_->ns[id][2][dev];
 
@@ -314,22 +327,35 @@ void GraphSearch::getJpsSucc(const StatePtr &curr, std::vector<int> &succ_ids, s
     }
     else
     {
+      // we are checking the forced neighbors
+
+      // get the forced neighbor relative location out of f1
+      // NOTE: Sikang calls these forced neighbors, but I think f1 is full of the blocking obstacle positions
       int nx = curr->x + jn3d_->f1[id][0][dev - num_neib];
       int ny = curr->y + jn3d_->f1[id][1][dev - num_neib];
       int nz = curr->z + jn3d_->f1[id][2][dev - num_neib];
-      if (isOccupied(nx, ny, nz))
+      if (isOccupied(nx, ny, nz)) // if the blocking obstacle is occupied, go expand in the direction of the forced neighbor
       {
+        // f2 actually has forced neighbor positions due to a blocking obstacle position in f1
         dx = jn3d_->f2[id][0][dev - num_neib];
         dy = jn3d_->f2[id][1][dev - num_neib];
         dz = jn3d_->f2[id][2][dev - num_neib];
+        // jump in the direction of the forced neighbor
         if (!jump(curr->x, curr->y, curr->z,
                   dx, dy, dz, new_x, new_y, new_z))
           continue;
       }
       else
         continue;
-    }
+    } // Now we've completed all the jumping we need to do
 
+    // We're still inside the for loop iterating over a range from 0 to the sum
+    // of the natural and forced neighbors (I need to watch out for his misusing the term "forced neighbors")
+
+    // because we've arrived down here we know that we have a jump point successor in the direction of new_x, new_y, new_z
+    // so that coordinate should be added as a jump point, do the processing below
+
+    // get the coordinate of the successor
     int new_id = coordToId(new_x, new_y, new_z);
     if (!seen_[new_id])
     {
@@ -338,6 +364,7 @@ void GraphSearch::getJpsSucc(const StatePtr &curr, std::vector<int> &succ_ids, s
       hm_[new_id]->h = getHeur(new_x, new_y, new_z);
     }
 
+    // push the successor on!
     succ_ids.push_back(new_id);
     succ_costs.push_back(std::sqrt((new_x - curr->x) * (new_x - curr->x) +
                                    (new_y - curr->y) * (new_y - curr->y) +
@@ -515,149 +542,7 @@ std::vector<StatePtr> GraphSearch::getAllSet() const
   return ss;
 }
 
-constexpr int JPS2DNeib::nsz[3][2];
-
-JPS2DNeib::JPS2DNeib()
-{
-  int id = 0;
-  for (int dy = -1; dy <= 1; ++dy)
-  {
-    for (int dx = -1; dx <= 1; ++dx)
-    {
-      int norm1 = std::abs(dx) + std::abs(dy);
-      for (int dev = 0; dev < nsz[norm1][0]; ++dev)
-        Neib(dx, dy, norm1, dev, ns[id][0][dev], ns[id][1][dev]);
-      for (int dev = 0; dev < nsz[norm1][1]; ++dev)
-      {
-        FNeib(dx, dy, norm1, dev,
-              f1[id][0][dev], f1[id][1][dev],
-              f2[id][0][dev], f2[id][1][dev]);
-      }
-      id++;
-    }
-  }
-}
-
-void JPS2DNeib::print()
-{
-  for (int dx = -1; dx <= 1; dx++)
-  {
-    for (int dy = -1; dy <= 1; dy++)
-    {
-      int id = (dx + 1) + 3 * (dy + 1);
-      printf("[dx: %d, dy: %d]-->id: %d:\n", dx, dy, id);
-      for (unsigned int i = 0; i < sizeof(f1[id][0]) / sizeof(f1[id][0][0]); i++)
-        printf("                f1: [%d, %d]\n", f1[id][0][i], f1[id][1][i]);
-    }
-  }
-}
-
-void JPS2DNeib::Neib(int dx, int dy, int norm1, int dev, int &tx, int &ty)
-{
-  switch (norm1)
-  {
-  case 0:
-    switch (dev)
-    {
-    case 0:
-      tx = 1;
-      ty = 0;
-      return;
-    case 1:
-      tx = -1;
-      ty = 0;
-      return;
-    case 2:
-      tx = 0;
-      ty = 1;
-      return;
-    case 3:
-      tx = 1;
-      ty = 1;
-      return;
-    case 4:
-      tx = -1;
-      ty = 1;
-      return;
-    case 5:
-      tx = 0;
-      ty = -1;
-      return;
-    case 6:
-      tx = 1;
-      ty = -1;
-      return;
-    case 7:
-      tx = -1;
-      ty = -1;
-      return;
-    }
-  case 1:
-    tx = dx;
-    ty = dy;
-    return;
-  case 2:
-    switch (dev)
-    {
-    case 0:
-      tx = dx;
-      ty = 0;
-      return;
-    case 1:
-      tx = 0;
-      ty = dy;
-      return;
-    case 2:
-      tx = dx;
-      ty = dy;
-      return;
-    }
-  }
-}
-
-void JPS2DNeib::FNeib(int dx, int dy, int norm1, int dev,
-                      int &fx, int &fy, int &nx, int &ny)
-{
-  switch (norm1)
-  {
-  case 1:
-    switch (dev)
-    {
-    case 0:
-      fx = 0;
-      fy = 1;
-      break;
-    case 1:
-      fx = 0;
-      fy = -1;
-      break;
-    }
-
-    // switch order if different direction
-    if (dx == 0)
-      fx = fy, fy = 0;
-
-    nx = dx + fx;
-    ny = dy + fy;
-    return;
-  case 2:
-    switch (dev)
-    {
-    case 0:
-      fx = -dx;
-      fy = 0;
-      nx = -dx;
-      ny = dy;
-      return;
-    case 1:
-      fx = 0;
-      fy = -dy;
-      nx = dx;
-      ny = -dy;
-      return;
-    }
-  }
-}
+// deleted a bunch of JPS 2D neighbor stuff
 
 constexpr int JPS3DNeib::nsz[4][2];
 
