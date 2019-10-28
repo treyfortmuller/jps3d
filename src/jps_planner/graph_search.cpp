@@ -267,10 +267,6 @@ void GraphSearch::getSucc(const StatePtr &curr, std::vector<int> &succ_ids, std:
 // 3D JUMP POINT SEARCH GET SUCCESSORS BUSINESS LOGIC
 void GraphSearch::getJpsSucc(const StatePtr &curr, std::vector<int> &succ_ids, std::vector<double> &succ_costs)
 {
-  // There was a check to see if we should be using 2D or 3D jump point search here, I deleted it for brevity and just left the 3D code
-  // if (use_2d_) {
-  // else {
-  // Straight up eliminating the 2D get successors code for brevity
 
   // 3D JPS get successors
   // essentially computing the motion diagonal order - he uses 1 for a straight move, this is a way faster computation
