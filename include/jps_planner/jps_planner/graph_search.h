@@ -20,10 +20,11 @@ struct compare_state
 {
   bool operator()(T a1, T a2) const
   {
+    // !!! Notice here he doesn't maintain an f value he just computes it on the fly, this might have performance implications (see A* best practices on this)
     double f1 = a1->g + a1->h;
     double f2 = a2->g + a2->h;
     if ((f1 >= f2 - 0.000001) && (f1 <= f2 + 0.000001))
-      return a1->g < a2->g; // if equal compare gvals
+      return a1->g < a2->g; // if equal compare gvals !!! HUGE FLAG here - he's doing smart tie breaking in favor of depth
     return f1 > f2;
   }
 };
@@ -147,6 +148,7 @@ private:
 class GraphSearch
 {
 public:
+  // TODO? Where is the 3D version of this constructor??
   /**
        * @brief 2D graph search constructor
        *
@@ -198,45 +200,30 @@ public:
 private:
   /// Main planning loop
   bool plan(StatePtr &currNode_ptr, int max_expand, int start_id, int goal_id);
+
   /// Get successor function for A*
   void getSucc(const StatePtr &curr, std::vector<int> &succ_ids, std::vector<double> &succ_costs);
+
   /// Get successor function for JPS
   void getJpsSucc(const StatePtr &curr, std::vector<int> &succ_ids, std::vector<double> &succ_costs);
+
   /// Recover the optimal path
   std::vector<StatePtr> recoverPath(StatePtr node, int id);
 
   /// Get subscript
-  // int coordToId(int x, int y) const;
-
-  /// Get subscript
   int coordToId(int x, int y, int z) const;
-
-  /// Check if (x, y) is free
-  // bool isFree(int x, int y) const;
 
   /// Check if (x, y, z) is free
   bool isFree(int x, int y, int z) const;
 
-  /// Check if (x, y) is occupied
-  // bool isOccupied(int x, int y) const;
-
   /// Check if (x, y, z) is occupied
   bool isOccupied(int x, int y, int z) const;
 
-  /// Clculate heuristic
-  // double getHeur(int x, int y) const;
-
-  /// Clculate heuristic
+  /// Calculate heuristic
   double getHeur(int x, int y, int z) const;
-
-  /// Determine if (x, y) has forced neighbor with direction (dx, dy)
-  // bool hasForced(int x, int y, int dx, int dy);
 
   /// Determine if (x, y, z) has forced neighbor with direction (dx, dy, dz)
   bool hasForced(int x, int y, int z, int dx, int dy, int dz);
-
-  /// 2D jump, return true iff finding the goal or a jump point
-  // bool jump(int x, int y, int dx, int dy, int& new_x, int& new_y);
 
   /// 3D jump, return true iff finding the goal or a jump point
   bool jump(int x, int y, int z, int dx, int dy, int dz, int &new_x, int &new_y, int &new_z);

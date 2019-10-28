@@ -6,6 +6,7 @@ using namespace JPS;
 
 // deleted 2D graph search constructor
 
+// TODO: check this constructor, what is this about neighbors???
 GraphSearch::GraphSearch(const char *cMap, int xDim, int yDim, int zDim, double eps, bool verbose) : cMap_(cMap), xDim_(xDim), yDim_(yDim), zDim_(zDim), eps_(eps), verbose_(verbose)
 {
   hm_.resize(xDim_ * yDim_ * zDim_);
@@ -544,6 +545,7 @@ std::vector<StatePtr> GraphSearch::getAllSet() const
 
 // deleted a bunch of JPS 2D neighbor stuff
 
+// computed at compile time
 constexpr int JPS3DNeib::nsz[4][2];
 
 JPS3DNeib::JPS3DNeib()
