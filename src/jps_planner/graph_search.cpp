@@ -12,6 +12,8 @@ GraphSearch::GraphSearch(const char *cMap, int xDim, int yDim, int zDim, double 
   hm_.resize(xDim_ * yDim_ * zDim_);
   seen_.resize(xDim_ * yDim_ * zDim_, false);
 
+  // ns_ is not used in JPS its only for A*
+
   // Set 3D neighbors
   for (int x = -1; x <= 1; x++)
   {
@@ -237,31 +239,6 @@ std::vector<StatePtr> GraphSearch::recoverPath(StatePtr node, int start_id)
   return path;
 }
 
-void GraphSearch::getSucc(const StatePtr &curr, std::vector<int> &succ_ids, std::vector<double> &succ_costs)
-{
-  // deleted 2D version of function
-
-  for (const auto &d : ns_)
-  {
-    int new_x = curr->x + d[0];
-    int new_y = curr->y + d[1];
-    int new_z = curr->z + d[2];
-    if (!isFree(new_x, new_y, new_z))
-      continue;
-
-    int new_id = coordToId(new_x, new_y, new_z);
-    if (!seen_[new_id])
-    {
-      seen_[new_id] = true;
-      hm_[new_id] = std::make_shared<State>(new_id, new_x, new_y, new_z, d[0], d[1], d[2]);
-      hm_[new_id]->h = getHeur(new_x, new_y, new_z);
-    }
-
-    succ_ids.push_back(new_id);
-    succ_costs.push_back(std::sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]));
-  }
-}
-
 // *********** JPS 3D GET SUCCESSORS BUSINESS LOGIC *************
 
 // 3D JUMP POINT SEARCH GET SUCCESSORS BUSINESS LOGIC
@@ -388,6 +365,9 @@ bool GraphSearch::jump(int x, int y, int z, int dx, int dy, int dz, int &new_x, 
   // auto addEnd = std::chrono::steady_clock::now();
   // auto addTime = std::chrono::duration_cast<std::chrono::nanoseconds>(addEnd - addStart).count();
   // printf("Add time took: %ld ns\n", addTime);
+
+  // Output the coordinate we're jumping with
+  // printf("Jumping with [%d, %d, %d] in direction [%d, %d, %d]\n", new_x, new_y, new_z, dx, dy, dz);
 
   // I have a similar check
   if (!isFree(new_x, new_y, new_z))

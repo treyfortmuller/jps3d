@@ -6,10 +6,10 @@ int main()
 {
   // Set start & goal
   std::vector<double> start{0.5, 0.5, 0.5};
-  std::vector<double> goal{380.5, 380.5, 80.5};
+  std::vector<double> goal{19.5, 19.5, 19.5};
   // Create a map
   std::vector<double> origin{0, 0, 0};      // set origin at (0, 0, 0)
-  std::vector<int> dim{400, 400, 100};      // set the number of cells in each dimension as 20, 10, 1
+  std::vector<int> dim{20, 20, 20};         // set the number of cells in each dimension as 20, 10, 1
   double res = 1.0;                         // set resolution as 1m
   std::vector<int> data;                    // occupancy data, the subscript follows: id = x + dim.x * y + dim.x * dim.y * z;
   data.resize(dim[0] * dim[1] * dim[2], 0); // initialize as free map, free cell has 0 occupancy
@@ -48,7 +48,7 @@ int main()
   //           << out.c_str() << std::endl;
 
   std::ofstream file;
-  file.open("trey.yaml");
+  file.open("trey_small.yaml");
   file << out.c_str();
   file.close();
 
