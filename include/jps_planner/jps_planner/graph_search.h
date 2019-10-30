@@ -218,6 +218,9 @@ private:
 
   std::vector<std::vector<int>> ns_;
   std::shared_ptr<JPS3DNeib> jn3d_;
+
+  // Added this one for me
+  int jumped_count_ = 0;
 };
 } // namespace JPS
 #endif

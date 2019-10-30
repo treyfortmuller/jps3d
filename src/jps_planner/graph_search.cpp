@@ -123,7 +123,7 @@ bool GraphSearch::plan(StatePtr &currNode_ptr, int maxExpand, int start_id, int 
     }
 
     // Here's the current node we're expanding!
-    printf("A* expansion on: %d, %d\n", currNode_ptr->x, currNode_ptr->y);
+    printf("A* expansion on: %d, %d, %d\n", currNode_ptr->x, currNode_ptr->y, currNode_ptr->z);
 
     std::vector<int> succ_ids;
     std::vector<double> succ_costs;
@@ -236,6 +236,8 @@ std::vector<StatePtr> GraphSearch::recoverPath(StatePtr node, int start_id)
     path.push_back(node);
   }
 
+  printf("jumped over %d\n", jumped_count_);
+
   return path;
 }
 
@@ -255,9 +257,9 @@ void GraphSearch::getJpsSucc(const StatePtr &curr, std::vector<int> &succ_ids, s
   int num_neib = jn3d_->nsz[norm1][0];
   int num_fneib = jn3d_->nsz[norm1][1];
 
-  printf("     norm: %d\n", norm1);
-  printf(" num_neib: %d\n", num_neib);
-  printf("num_fneib: %d\n", num_fneib);
+  // printf("     norm: %d\n", norm1);
+  // printf(" num_neib: %d\n", num_neib);
+  // printf("num_fneib: %d\n", num_fneib);
 
   // When moving in a cardinal direction there is 1 natural neighbor and 8 forced neighbors
   // num_neib + num_fneib is 9
@@ -285,14 +287,14 @@ void GraphSearch::getJpsSucc(const StatePtr &curr, std::vector<int> &succ_ids, s
       // Interesting... we only ever seem to check if we don't detect a jump point
       // timing this, this is apparently crazy stupid fast
 
-      auto jumpTimeStart = std::chrono::steady_clock::now();
+      // auto jumpTimeStart = std::chrono::steady_clock::now();
 
       auto jumpResult = jump(curr->x, curr->y, curr->z,
                              dx, dy, dz, new_x, new_y, new_z);
 
-      auto jumpTimeEnd = std::chrono::steady_clock::now();
-      auto jumpTime = std::chrono::duration_cast<std::chrono::nanoseconds>(jumpTimeEnd - jumpTimeStart).count();
-      printf("JUMP TOOK: %ld ns\n", jumpTime);
+      // auto jumpTimeEnd = std::chrono::steady_clock::now();
+      // auto jumpTime = std::chrono::duration_cast<std::chrono::nanoseconds>(jumpTimeEnd - jumpTimeStart).count();
+      // printf("JUMP TOOK: %ld ns\n", jumpTime);
 
       if (!jumpResult)
       {
@@ -355,6 +357,9 @@ void GraphSearch::getJpsSucc(const StatePtr &curr, std::vector<int> &succ_ids, s
 // Note he just returns true when a node is a jump point, I return an optional size_t indicating where the jump point is which must be
 bool GraphSearch::jump(int x, int y, int z, int dx, int dy, int dz, int &new_x, int &new_y, int &new_z)
 {
+  // increment the jumped counter
+  ++jumped_count_;
+
   // auto addStart = std::chrono::steady_clock::now();
 
   // I have similar code that gets the next neighbor
